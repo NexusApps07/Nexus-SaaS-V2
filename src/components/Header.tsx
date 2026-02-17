@@ -1,21 +1,28 @@
-"use client"; // This must be at the top
+"use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+// REMOVED: import { usePathname } from "next/navigation"; (Unused import causing warning)
 
 export default function Header() {
   const [businessName, setBusinessName] = useState("Loading...");
 
   useEffect(() => {
-    // 1. Get the current URL path
+    // 1. Safety Check: Stop execution if not in browser
+    if (typeof window === "undefined") return;
+
+    // 2. Get the current URL path safely
     const path = window.location.pathname;
     
-    // 2. Extract the repo name (the part after the domain)
-    // Example: "/island-dog-pet-wash/" -> "island-dog-pet-wash"
-    const slug = path.split("/").filter(Boolean)[0];
+    // 3. Extract the repo name
+    // The filter(Boolean) removes empty strings from the split array
+    const parts = path.split("/").filter(Boolean);
+    
+    // If on localhost (root /), parts might be empty.
+    // If on GitHub Pages (/repo-name/), parts[0] is the repo name.
+    const slug = parts.length > 0 ? parts[0] : null;
 
     if (slug) {
-      // 3. Format it: "island-dog-pet-wash" -> "Island Dog Pet Wash"
+      // 4. Format it
       const formattedName = slug
         .split("-")
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -36,7 +43,7 @@ export default function Header() {
           {businessName}
         </h1>
 
-        {/* Menu Icon (Optional) */}
+        {/* Menu Icon */}
         <button className="p-2 text-white/80 hover:text-white">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
