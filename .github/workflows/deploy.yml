@@ -27,6 +27,13 @@ jobs:
         run: npm install
 
       - name: Build with Next.js
+        env:
+          NEXT_PUBLIC_BUSINESS_NAME: "Top Notch Pet Spa"
+          NEXT_PUBLIC_BUSINESS_CITY: "New York, NY"
+          NEXT_PUBLIC_THEME_COLOR: "#14b8a6"
+          NEXT_PUBLIC_BUSINESS_SLUG: "top-notch-pet-spa"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           # The Automation Magic: 
           # We set the Base Path to the current Repo Name
