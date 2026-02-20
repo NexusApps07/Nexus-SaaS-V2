@@ -8,7 +8,15 @@ import {
   Smartphone, MapPin, Sparkles, Award, ShieldCheck, Pencil
 } from 'lucide-react';
 
-// 1. IMPORT THE SMART TITLE COMPONENT
+// 1. SUPABASE CLIENT
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// 2. SMART COMPONENTS
 import HeroTitle from "@/components/HeroTitle"; 
 import SmartCity from "@/components/SmartCity";
 
@@ -29,13 +37,14 @@ export default function NexusMasterPortal() {
   const [newPet, setNewPet] = useState({ name: '', breed: '', notes: '' });
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [customerName, setCustomerName] = useState(''); // Added for Lead Gen
 
   // --- BRANDING DNA ---
-  // We keep these for colors/cities, but the Name will be handled by HeroTitle
   const brandCity = process.env.NEXT_PUBLIC_BUSINESS_CITY || "Premium Experience";
   const brandColor = process.env.NEXT_PUBLIC_THEME_COLOR || "#38bdf8";
+  const businessSlug = process.env.NEXT_PUBLIC_BUSINESS_SLUG || "demo-business"; // SaaS Routing
 
-  // Glassmorphism Utility (Clean & Sharp)
+  // Glassmorphism Utility
   const glassBase = {
     backgroundColor: `${brandColor}10`, 
     backdropFilter: 'blur(20px)',
@@ -69,15 +78,39 @@ export default function NexusMasterPortal() {
     return days;
   }, []);
 
-  // --- LOGIC: BOOKINGS ---
-  const saveBooking = () => {
-    if (!selectedDate || !selectedTime) return;
-    const newBooking = { id: Date.now(), service: isScheduling.name, price: isScheduling.price, date: selectedDate, time: selectedTime };
-    const updated = [newBooking, ...bookings];
-    setBookings(updated);
-    localStorage.setItem('nexus_vault_data', JSON.stringify(updated));
-    setIsScheduling(null);
-    showToast("Booking Confirmed");
+  // --- LOGIC: SAAS BOOKINGS ---
+  const saveBooking = async () => {
+    if (!selectedDate || !selectedTime || !customerName) {
+      showToast("Please complete all fields");
+      return;
+    }
+
+    // 1. Prepare data for the Business Owner (Supabase)
+    const leadData = {
+      business_slug: businessSlug,
+      customer_name: customerName,
+      service: isScheduling.name,
+      booking_info: { date: selectedDate, time: selectedTime, price: isScheduling.price },
+      status: 'new'
+    };
+
+    // 2. Send to Cloud
+    const { error } = await supabase.from('leads').insert([leadData]);
+
+    if (error) {
+      console.error("Supabase Error:", error);
+      showToast("Network Error. Try again.");
+    } else {
+      // 3. Save locally for the Customer's "Vault" tab
+      const newBooking = { id: Date.now(), service: isScheduling.name, price: isScheduling.price, date: selectedDate, time: selectedTime };
+      const updated = [newBooking, ...bookings];
+      setBookings(updated);
+      localStorage.setItem('nexus_vault_data', JSON.stringify(updated));
+      
+      setIsScheduling(null);
+      setCustomerName(''); // Reset input
+      showToast("Booking Confirmed!");
+    }
   };
 
   const deleteBooking = (id: number) => {
@@ -151,7 +184,6 @@ export default function NexusMasterPortal() {
       <header className="px-6 pt-14 pb-8 relative z-10 flex justify-between items-start">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <h1 className="text-3xl font-extrabold tracking-tight uppercase leading-none">
-            {/* 2. REPLACED STATIC TEXT WITH SMART COMPONENT */}
             <HeroTitle />
           </h1>
           <div className="flex items-center gap-2 mt-3 opacity-80">
@@ -271,15 +303,28 @@ export default function NexusMasterPortal() {
         </div>
       </nav>
 
-      {/* SCHEDULING MODAL */}
+      {/* SCHEDULING MODAL WITH NAME INPUT */}
       <AnimatePresence>
         {isScheduling && (
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="fixed inset-0 z-[100] bg-[#09090b] p-8 flex flex-col">
             <div className="flex justify-between items-center mb-10">
-              <h2 className="text-2xl font-bold">Select Time</h2>
+              <h2 className="text-2xl font-bold">Details</h2>
               <button onClick={() => setIsScheduling(null)} className="h-10 w-10 bg-white/5 rounded-full flex items-center justify-center"><X size={20}/></button>
             </div>
             <div className="space-y-8 flex-1 overflow-y-auto">
+                
+                {/* SAAS ADDITION: CUSTOMER NAME */}
+                <section>
+                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-4">Your Name</p>
+                    <input 
+                        type="text" 
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="e.g. John Doe" 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-white/30 transition-all"
+                    />
+                </section>
+
                 <section>
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-4">Date</p>
                     <div className="grid grid-cols-4 gap-2">
@@ -299,7 +344,7 @@ export default function NexusMasterPortal() {
                     </div>
                 </section>
             </div>
-            <button disabled={!selectedDate || !selectedTime} onClick={saveBooking} style={{ backgroundColor: brandColor }} className="w-full py-5 rounded-2xl text-black font-bold text-xs uppercase tracking-[0.2em] disabled:opacity-20 active:scale-95 transition-all">Confirm</button>
+            <button disabled={!selectedDate || !selectedTime || !customerName} onClick={saveBooking} style={{ backgroundColor: brandColor }} className="w-full py-5 rounded-2xl text-black font-bold text-xs uppercase tracking-[0.2em] disabled:opacity-20 active:scale-95 transition-all">Confirm</button>
           </motion.div>
         )}
       </AnimatePresence>
