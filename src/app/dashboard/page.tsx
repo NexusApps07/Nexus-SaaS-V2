@@ -20,21 +20,31 @@ export default function SaaSAdminPortal() {
   const businessSlug = process.env.NEXT_PUBLIC_BUSINESS_SLUG || "demo-business";
   const businessName = process.env.NEXT_PUBLIC_BUSINESS_NAME || "Nexus Services";
 
-  useEffect(() => {
-    const fetchLeads = async () => {
+ useEffect(() => {
+    const checkAuthAndFetchLeads = async () => {
+      // 1. Check if the user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // 2. If no session, kick them out to the login page
+        window.location.href = '/login';
+        return;
+      }
+
+      // 3. If they have the keys, fetch the leads
       const { data } = await supabase
         .from('leads')
         .select('*')
-        .eq('business_slug', businessSlug) // Filters leads for THIS specific client
+        .eq('business_slug', businessSlug)
         .order('created_at', { ascending: false });
 
       setLeads(data || []);
       setLoading(false);
     };
     
-    fetchLeads();
+    checkAuthAndFetchLeads();
   }, [businessSlug]);
-
+  
   return (
     <div className="flex min-h-screen bg-[#050505] text-white font-sans">
       {/* SIDEBAR - THE COMMAND CENTER */}
